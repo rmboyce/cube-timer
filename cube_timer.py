@@ -4,6 +4,7 @@ import sys
 import random
 import time
 import math
+from pynput import keyboard
 #import os
 
 from PyQt5.QtCore import QDate, QTimer, QSize, Qt
@@ -28,6 +29,8 @@ class Rubix(QMainWindow):
         self.timeCanceled = False
         self.avg5 = float(10000000000000)
         self.avg12 = float(10000000000000)
+        self.released = False
+        self.alreadyRecorded = False
 
         self.initUI()
 
@@ -94,7 +97,6 @@ class Rubix(QMainWindow):
         pll_layout.addWidget(plltext)
         pll.setLayout(pll_layout)
 
-
         #exitAct = QAction('Exit', self)
         #exitAct.setShortcut('Ctrl+Q')
         #exitAct.triggered.connect(qApp.quit)
@@ -118,21 +120,30 @@ class Rubix(QMainWindow):
             self.timeState = 0
         elif index == 1:
             self.cancelTimeButton.setEnabled(False)
-            if(not self.rectime == 0 and not self.timeCanceled):
+            if(not self.rectime == 0 and not self.timeCanceled and not self.alreadyRecorded):
                 self.times.append(self.rectime)
+                # write time to file
+                file = open("previous_solves.txt", "a+")
+                file.write(QDate.currentDate().toString(Qt.ISODate) + ", ")
+                file.write(self.fixText(self.rectime) + '\n')
+                file.close()
                 self.resetTimesButton.setEnabled(True)
             self.timerDisplay.setText('00:00.000')
             self.updateStats()
             self.rectime = 0
         elif index == 2:
             self.cancelTimeButton.setEnabled(False)
-            if(not self.rectime == 0 and not self.timeCanceled):
+            if(not self.rectime == 0 and not self.timeCanceled and not self.alreadyRecorded):
                 self.times.append(self.rectime)
+                # write time to file
+                file = open("previous_solves.txt", "a+")
+                file.write(QDate.currentDate().toString(Qt.ISODate) + ", ")
+                file.write(self.fixText(self.rectime) + '\n')
+                file.close()
                 self.resetTimesButton.setEnabled(True)
             self.timerDisplay.setText('00:00.000')
             self.rectime = 0
             
-
     def badTime(self):
         self.timeCanceled = True
         self.timerDisplay.setText('00:00.000')
@@ -149,12 +160,20 @@ class Rubix(QMainWindow):
             return
         if event.isAutoRepeat():
             return
-        
+
         if not self.timerRunning and self.timeState == 0:
+            def on_release(key):
+                self.released = True
+                return False
+            with keyboard.Listener(on_release = on_release) as listener:
+                listener.join()
+            while(self.released == False):
+                on_key_release()
+            self.released = False
             self.cancelTimeButton.setEnabled(False)
+            self.alreadyRecorded = False
             # start the timer
             if(not self.timeCanceled and not self.rectime == 0):
-                self.times.append(self.rectime)
                 self.resetTimesButton.setEnabled(True)
             else:
                 self.timeCanceled = False
@@ -166,6 +185,14 @@ class Rubix(QMainWindow):
             # send a signal every 20 milliseconds:
             self.timer.start(20)
         elif self.timeState == 1:
+            if (not self.timeCanceled):
+                self.times.append(self.rectime)
+                # write time to file
+                file = open("previous_solves.txt", "a+")
+                file.write(QDate.currentDate().toString(Qt.ISODate) + ", ")
+                file.write(self.fixText(self.rectime) + '\n')
+                file.close()
+                self.alreadyRecorded = True
             self.showScramble()
             self.timeState = 0
             self.timerDisplay.setText('{:02d}:{:02d}.{:03d}'.format(0, 0, 0))
@@ -345,5 +372,3 @@ if (__name__) == '__main__':
     app = QApplication(sys.argv)
     rubix = Rubix()
     sys.exit(app.exec_())
-
-    
