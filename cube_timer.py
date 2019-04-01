@@ -5,7 +5,6 @@ import random
 import time
 import math
 from pynput import keyboard
-#import os
 
 from PyQt5.QtCore import QDate, QTimer, QSize, Qt
 from PyQt5.QtWidgets import (QMainWindow, QLabel, QGridLayout, QWidget,
@@ -27,8 +26,9 @@ class Rubix(QMainWindow):
         self.rectime = 0
         self.timeState = 0
         self.timeCanceled = False
-        self.avg5 = float(10000000000000)
-        self.avg12 = float(10000000000000)
+        self.dnf = False
+        self.avg5 = float(1000000)
+        self.avg12 = float(1000000)
         self.released = False
         self.alreadyRecorded = False
 
@@ -51,6 +51,11 @@ class Rubix(QMainWindow):
         self.cancelTimeButton.clicked.connect(self.badTime)
         self.cancelTimeButton.setEnabled(False)
 
+        self.dnfButton = QPushButton()
+        self.dnfButton.setText('&DNF')
+        self.dnfButton.clicked.connect(self.dnfEvent)
+        self.dnfButton.setEnabled(False)
+
         self.timerDisplay = QLabel('00:00.000')
         self.timerDisplay.setAlignment(Qt.AlignHCenter | Qt.AlignVCenter)
         font = self.timerDisplay.font()
@@ -65,6 +70,7 @@ class Rubix(QMainWindow):
         timer_layout.addWidget(self.scrambleText)
         timer_layout.addWidget(self.timerDisplay)
         timer_layout.addWidget(self.cancelTimeButton)
+        timer_layout.addWidget(self.dnfButton)
         timer.setLayout(timer_layout)
 
         self.statsText = QPlainTextEdit()
@@ -120,33 +126,52 @@ class Rubix(QMainWindow):
             self.timeState = 0
         elif index == 1:
             self.cancelTimeButton.setEnabled(False)
+            self.dnfButton.setEnabled(False)
             if(not self.rectime == 0 and not self.timeCanceled and not self.alreadyRecorded):
-                self.times.append(self.rectime)
-                # write time to file
-                file = open("previous_solves.txt", "a+")
-                file.write(QDate.currentDate().toString(Qt.ISODate) + ", ")
-                file.write(self.fixText(self.rectime) + '\n')
-                file.close()
+                if self.dnf:
+                    self.times.append(1000000)
+                else:
+                    self.times.append(self.rectime)
+                    # write time to file
+                    file = open("previous_solves.txt", "a+")
+                    file.write(QDate.currentDate().toString(Qt.ISODate) + ", ")
+                    file.write(self.fixText(self.rectime) + '\n')
+                    file.close()
                 self.resetTimesButton.setEnabled(True)
             self.timerDisplay.setText('00:00.000')
             self.updateStats()
             self.rectime = 0
         elif index == 2:
             self.cancelTimeButton.setEnabled(False)
+            self.dnfButton.setEnabled(False)
             if(not self.rectime == 0 and not self.timeCanceled and not self.alreadyRecorded):
-                self.times.append(self.rectime)
-                # write time to file
-                file = open("previous_solves.txt", "a+")
-                file.write(QDate.currentDate().toString(Qt.ISODate) + ", ")
-                file.write(self.fixText(self.rectime) + '\n')
-                file.close()
+                if self.dnf:
+                    self.times.append(1000000)
+                else:
+                    self.times.append(self.rectime)
+                    # write time to file
+                    file = open("previous_solves.txt", "a+")
+                    file.write(QDate.currentDate().toString(Qt.ISODate) + ", ")
+                    file.write(self.fixText(self.rectime) + '\n')
+                    file.close()
                 self.resetTimesButton.setEnabled(True)
             self.timerDisplay.setText('00:00.000')
             self.rectime = 0
             
     def badTime(self):
         self.timeCanceled = True
-        self.timerDisplay.setText('00:00.000')
+        self.timerDisplay.setText('Canceled')
+        self.cancelTimeButton.setEnabled(False)
+        self.dnfButton.setEnabled(False)
+
+    def dnfEvent(self):
+        self.dnf = True
+        self.timerDisplay.setText('DNF')
+        file = open("previous_solves.txt", "a+")
+        file.write(QDate.currentDate().toString(Qt.ISODate) + ", ")
+        file.write('DNF\n')
+        file.close()
+        self.dnfButton.setEnabled(False)
         self.cancelTimeButton.setEnabled(False)
 
     def badStats(self):
@@ -162,6 +187,7 @@ class Rubix(QMainWindow):
             return
 
         if not self.timerRunning and self.timeState == 0:
+            # only start timer when key is released
             def on_release(key):
                 self.released = True
                 return False
@@ -171,12 +197,14 @@ class Rubix(QMainWindow):
                 on_key_release()
             self.released = False
             self.cancelTimeButton.setEnabled(False)
+            self.dnfButton.setEnabled(False)
             self.alreadyRecorded = False
-            # start the timer
+            # clear dnfs and canceled times
             if(not self.timeCanceled and not self.rectime == 0):
                 self.resetTimesButton.setEnabled(True)
-            else:
-                self.timeCanceled = False
+            self.timeCanceled = False
+            self.dnf = False
+            # start the timer
             self.timerRunning = True
             self.time_start = time.time()
             self.time_end = None
@@ -186,16 +214,21 @@ class Rubix(QMainWindow):
             self.timer.start(20)
         elif self.timeState == 1:
             if (not self.timeCanceled):
-                self.times.append(self.rectime)
-                # write time to file
-                file = open("previous_solves.txt", "a+")
-                file.write(QDate.currentDate().toString(Qt.ISODate) + ", ")
-                file.write(self.fixText(self.rectime) + '\n')
-                file.close()
-                self.alreadyRecorded = True
+                if self.dnf:
+                    self.times.append(1000000)
+                else:
+                    self.times.append(self.rectime)
+                    # write time to file
+                    file = open("previous_solves.txt", "a+")
+                    file.write(QDate.currentDate().toString(Qt.ISODate) + ", ")
+                    file.write(self.fixText(self.rectime) + '\n')
+                    file.close()
+                    self.alreadyRecorded = True
             self.showScramble()
             self.timeState = 0
             self.timerDisplay.setText('{:02d}:{:02d}.{:03d}'.format(0, 0, 0))
+            self.cancelTimeButton.setEnabled(False)
+            self.dnfButton.setEnabled(False)
         else:
             # stop the timer
             self.timerRunning = False
@@ -204,6 +237,7 @@ class Rubix(QMainWindow):
             self.updateTimerDisplay()
             self.rectime = self.time_end - self.time_start
             self.cancelTimeButton.setEnabled(True)
+            self.dnfButton.setEnabled(True)
             self.timeState = 1
 
     def updateTimerDisplay(self):
@@ -255,79 +289,97 @@ class Rubix(QMainWindow):
         if len(self.times) == 0:
             self.statsText.setPlainText('Not enough times recorded yet!')
         else:
-
             sortedList = sorted(self.times)
+            numDNFs = 0
 
             strtimes = ''
             for i in range(len(sortedList)):
                 if i == len(sortedList) - 1:
-                    strtimes += self.fixText(sortedList[i])
+                    if sortedList[i] == 1000000:
+                        strtimes += 'DNF'
+                        numDNFs += 1
+                    else:
+                        strtimes += self.fixText(sortedList[i])
                 else:
-                    strtimes += self.fixText(sortedList[i]) + ', '
+                    if sortedList[i] == 1000000:
+                        strtimes += 'DNF, '
+                        numDNFs += 1
+                    else:
+                        strtimes += self.fixText(sortedList[i]) + ', '
             strtimes = 'List: ' + strtimes + '\n'
-            '''
-            average = float(0)
-            for i in sortedList:
-                average += i
-            average /= float(len(sortedList))
-            '''
-            strtimes += 'Mean: ' + self.fixText(sum(sortedList)/len(sortedList)) + '\n'
 
-            if len(sortedList) < 3:
+            if numDNFs == 0:
+                strtimes += 'Mean: ' + self.fixText(sum(sortedList)/len(sortedList)) + '\n'
+            else:
+                strtimes += 'Mean: DNF\n'
+
+            if numDNFs >= 2:
+                strtimes += 'Average: DNF\n'
+            elif len(sortedList) < 3:
                 strtimes += 'Not enough data to display average!\n'
             else:
-                '''
-                midaverage = float(0)
-                for i in range(1, len(sortedList) - 1):
-                    midaverage += sortedList[i]
-                midaverage /= float(len(sortedList) - 2)
-                '''
-                
-                strtimes += 'Average: ' + self.fixText(sum(sortedList[1:len(sortedList)-1])/len(sortedList)) + '\n'
+                strtimes += 'Average: ' + self.fixText(sum(sortedList[1:len(sortedList)-1])/(len(sortedList)-2)) + '\n'
 
-            if len(sortedList) < 5:
+            if sum(self.times[-5:]) >= 2000000:
+                strtimes += 'Average of 5: DNF\n'
+            elif len(sortedList) < 5:
                 strtimes += 'Not enough data to display average of 5!\n'
             else:
                 strtimes += 'Average of 5: ' + self.fixText(sum(sorted(self.times[-5:])[1:4])/3) + '\n'
                 if sum(sorted(self.times[-5:])[1:4])/3 < self.avg5:
                     self.avg5 = sum(sorted(self.times[-5:])[1:4])/3
 
-            if len(sortedList) < 5:
+            if self.avg5 == float(1000000):
                 strtimes += 'Not enough data to display best average of 5!\n'
             else:
                 strtimes += 'Best average of 5: ' + self.fixText(self.avg5) + '\n'
 
-            if len(sortedList) < 12:
+            if sum(self.times[-12:]) >= 2000000:
+                strtimes += 'Average of 12: DNF\n'
+            elif len(sortedList) < 12:
                 strtimes += 'Not enough data to display average of 12!\n'
             else:
                 strtimes += 'Average of 12: ' + self.fixText(sum(sorted(self.times[-12:])[1:11])/10) + '\n'
                 if sum(sorted(self.times[-12:])[1:11])/10 < self.avg12:
                     self.avg12 = sum(sorted(self.times[-12:])[1:11])/10
 
-            if len(sortedList) < 12:
+            if self.avg12 == float(1000000):
                 strtimes += 'Not enough data to display best average of 12!\n'
             else:
                 strtimes += 'Best average of 12: ' + self.fixText(self.avg12) + '\n'
 
-            strtimes += 'Fastest: ' + self.fixText(sortedList[0]) + '\n'
+            if len(sortedList) - numDNFs <= 0:
+                strtimes += 'Not enough data to display fastest time!\n'
+            else:
+                strtimes += 'Fastest: ' + self.fixText(sortedList[0]) + '\n'
 
-            strtimes += 'Slowest: ' + self.fixText(sortedList[len(sortedList) - 1]) + '\n'
+            if numDNFs == 0:
+                strtimes += 'Slowest: ' + self.fixText(sortedList[len(sortedList) - 1]) + '\n'
+            else:
+                strtimes += 'Slowest: DNF\n'
 
-            stand = float(0)
-            for i in sortedList:
-                stand += math.pow((i - sum(sortedList)/len(sortedList)), 2)
-            stand /= float(len(sortedList))
-            stand = math.sqrt(stand)
-            strtimes += 'Standard Deviation: ' + self.fixText(stand) + '\n'
-            #print(7)
+            if len(sortedList) - numDNFs <= 0:
+                strtimes += 'Not enough data to display slowest non-DNF time!\n'
+            else:
+                strtimes += 'Slowest non-DNF: ' + self.fixText(sortedList[len(sortedList) - 1 - numDNFs]) + '\n'
+
+            if len(sortedList) - numDNFs <= 0:
+                strtimes += 'Not enough data to display standard deviation!\n'
+            else:
+                stand = float(0)
+                noDNFsum = sum(sortedList) - 1000000*numDNFs
+                for i in sortedList:
+                    if i != 1000000:
+                        stand += math.pow((i - noDNFsum/(len(sortedList)-numDNFs)), 2)
+                stand /= float(len(sortedList)-numDNFs)
+                stand = math.sqrt(stand)
+                strtimes += 'Standard Deviation of non-DNFs: ' + self.fixText(stand) + '\n'
 
             self.statsText.setPlainText(strtimes)
 
     def showScramble(self):
         scramble = ''
-        
         for i in range(0, 20):
-            
             subscramble = ''
             
             face = random.randint(1, 6)
@@ -372,3 +424,5 @@ if (__name__) == '__main__':
     app = QApplication(sys.argv)
     rubix = Rubix()
     sys.exit(app.exec_())
+
+    
