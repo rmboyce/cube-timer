@@ -1,5 +1,5 @@
 # Cube Timer
 
-A timer for speedcubing. 
+This is a Rubik’s Cube timer made using Python and PyQt to track how fast the user can solve a cube. The program also saves every past logged time in a text file with timestamps, so one can see their improvement in the long run.
 
-Uses PyQt for the windowing. The timer starts when the spacebar is released and ends when it is pressed. It also creates a text file called previous_solves.txt that includes your previous solves and their respective dates. The times only register if you hit the spacebar to show a new scramble or switch tabs.
+See details at my website [here](https://www.ramseyboyce.com/smaller_projects/cube_timer.html).
